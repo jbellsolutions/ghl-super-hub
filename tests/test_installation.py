@@ -76,6 +76,12 @@ class Installer(unittest.TestCase):
             with patch.dict(os.environ,{'XDG_DATA_HOME':directory}):
                 selected,data=plugin_runtime.prepare(ROOT)
                 self.assertEqual(selected,python);self.assertEqual(data,release/'knowledge')
+    def test_native_build_snapshot_keeps_generated_files_outside_plugin(self):
+        with tempfile.TemporaryDirectory() as directory:
+            target=Path(directory)/'build source';plugin_runtime.snapshot(ROOT,target)
+            self.assertTrue((target/'setup.py').exists());self.assertTrue((target/'ghl_hub/mcp.py').exists())
+            self.assertFalse((target/'.env').exists());self.assertFalse((target/'knowledge/search.sqlite3').exists())
+            self.assertFalse(any(target.rglob('*.pyc')))
     def test_symlink_launcher_works_without_readlink_f(self):
         with tempfile.TemporaryDirectory(prefix='ghl path ') as directory:
             p=Path(directory)/'ghl';p.symlink_to(ROOT/'ghl')

@@ -23,7 +23,7 @@ See [installation evidence](evals/2026-10-20-installation.md) for tested cases a
 
 ## Validation performed
 
-`python -m unittest discover -s tests -v`: **37 tests passed**. Checks include source
+`python -m unittest discover -s tests -v`: **38 tests passed**. Checks include source
 catalog consistency, tenant isolation, no implicit location, no-network dry runs,
 required body validation, unsafe path rejection, retries, redirect refusal, empty
 responses, multipart handle closure, public OAuth form transport, CLI location handling,

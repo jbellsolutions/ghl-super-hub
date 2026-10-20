@@ -28,7 +28,7 @@ def main():
         explicit=Path(args[index+1]).expanduser(); del args[index:index+2]
     default=ROOT/'.env'
     if not default.exists(): default=Path(os.environ.get('XDG_CONFIG_HOME',str(Path.home()/'.config')))/'ghl-super-hub'/'credentials.env'
-    path=explicit or Path(os.environ.get('GHL_ENV_FILE',str(default))).expanduser()
+    path=explicit or Path(os.environ.get('GHL_ENV_FILE') or str(default)).expanduser()
     if explicit or os.environ.get('GHL_ENV_FILE'):
         # Prevent accidental token reuse from the parent tenant when a profile omits a key.
         for key in ('GHL_API_KEY','GHL_LOCATION_ID','GHL_FIREBASE_TOKEN','GHL_FIREBASE_REFRESH_TOKEN'): os.environ.pop(key,None)

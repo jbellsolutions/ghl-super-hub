@@ -14,12 +14,13 @@
 
 | Case | Result | Scope |
 | --- | --- | --- |
-| Full offline test suite | 37 passed | Source catalog, MCP, tenant isolation, installer, credentials and transport |
+| Full offline test suite | 38 passed | Source catalog, MCP, tenant isolation, installer, credentials and transport |
 | Fresh installation into a temporary HOME with spaces | Passed | Real Python venv/pip, release extraction, CLI and MCP; native agent commands stubbed |
 | Immediate repeat installation | Passed | Existing release reused; native registration repeated without destructive config edits |
 | Python fallback | User-local uv acquired; usable Python 3.11.2 selected; shell profiles unchanged | Real fallback branch with unavailable Python candidates simulated |
 | Fresh + repeat timing | 7.41 seconds together on this sandbox | Not a cross-platform performance guarantee |
 | MCP through native runtime launcher | Six tools; valid JSON-only stdout | Real stdio process, prewarmed runtime |
+| Cold native MCP startup | Six tools, JSON-only stdout, setup logs only on stderr, build snapshot isolated from plugin source | Real fresh runtime installation |
 | Documentation search through installed CLI launcher | Passed | Real archived corpus/search |
 | Wrong release checksum | Fails before native registration | Automated test |
 | Traversal / symlink archive entries | Rejected | Automated test |

@@ -67,7 +67,7 @@ class CatalogAndExecution(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             p=Path(directory)/'file.txt';p.write_text('test')
             plan=executor.prepare('medias:upload-media-content',files={'file':str(p)})
-            self.assertEqual(plan['files'],{'file':[str(p)]})
+            self.assertEqual(plan['files'],{'file':[str(p.resolve())]})
             with patch.dict(os.environ,{'GHL_API_KEY':'test'},clear=True),patch('ghl_hub.transport.requests.request',return_value=response()) as send:
                 executor.call('medias:upload-media-content',files={'file':str(p)},execute=True)
                 self.assertEqual(send.call_args.kwargs['files'][0][0],'file')
