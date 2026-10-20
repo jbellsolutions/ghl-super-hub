@@ -1,0 +1,24 @@
+{
+  "finished_at": "2026-10-19T22:08:47.408277+00:00",
+  "discovered": 2928,
+  "robots_denied": [],
+  "attempted": 3,
+  "downloaded": 0,
+  "archived": 798,
+  "errors": [
+    {
+      "url": "https://help.gohighlevel.com/support/solutions/articles/155000002707-complete-guide-to-media-storage",
+      "error": "Documentation host requires browser verification; stopped HTTP ingestion"
+    },
+    {
+      "url": "https://help.gohighlevel.com/support/solutions/articles/155000002760-send-quotes-with-optional-items-checklist-for-your-signers-in-documents-contracts",
+      "error": "Documentation host requires browser verification; stopped HTTP ingestion"
+    },
+    {
+      "url": "https://help.gohighlevel.com/support/solutions/articles/155000002765-multi-select-for-forms-surveys-contains-phrase-and-exact-match",
+      "error": "Documentation host requires browser verification; stopped HTTP ingestion"
+    }
+  ],
+  "complete": false,
+  "scheduled": 2130
+}

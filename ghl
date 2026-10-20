@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+if [ ! -x "$SCRIPT_DIR/.venv/bin/python" ]; then
+  echo "Run bash $SCRIPT_DIR/install.sh first." >&2
+  exit 1
+fi
+exec "$SCRIPT_DIR/.venv/bin/python" -m ghl_hub.bootstrap "$@"

@@ -1,0 +1,9 @@
+# Merge these entries into ~/.hermes/config.yaml; preserve existing settings.
+mcp_servers:
+  ghl:
+    command: "/absolute/path/to/GHL/ghl"
+    args: ["--env-file", "/secure/location-a.env", "hub", "mcp"]
+  orgo:
+    url: "https://www.orgo.ai/mcp"
+    # Authenticate with the hosted server's OAuth flow in your MCP client.
+    # See docs/INSTALL.md if your Hermes version needs the stdio alternative.
