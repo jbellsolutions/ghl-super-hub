@@ -1,5 +1,14 @@
 {
   "name": "ghl-super-hub",
-  "owner": {"name": "jbellsolutions"},
-  "plugins": [{"name": "ghl-super-hub", "source": "./", "description": "HighLevel operator skills, CLI, MCP and documentation", "version": "2.2.0"}]
+  "owner": {
+    "name": "jbellsolutions"
+  },
+  "plugins": [
+    {
+      "name": "ghl-super-hub",
+      "source": "./",
+      "description": "HighLevel operator skills, CLI, MCP and documentation",
+      "version": "2.3.0"
+    }
+  ]
 }

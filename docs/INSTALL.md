@@ -10,6 +10,32 @@ It detects the installed agent(s). To target one, append `-s -- --agent claude` 
 `-s -- --agent hermes` to `bash`. Or drop [INSTALL-AGENT.md](../INSTALL-AGENT.md)
 into the agent and ask it to follow the instructions.
 
+Before downloading the release, preflight checks the selected agent, Git, writable
+installation/configuration directories and the GHL connection. Missing requirements
+are listed together. Resolve prerequisites and choose recheck, or quit and resume
+later. If no usable Python is found, setup asks before downloading user-local uv/Python.
+
+When credentials are absent, choose a hidden token prompt and location ID, or explicitly
+choose documentation-only mode. Piped installs read prompts from `/dev/tty`; tokens
+are never echoed. Without a terminal, setup returns a checklist and exit code 2 before
+installation. Your agent should resolve the checklist through a secure secret tool
+or direct you to a terminal. Never put a token in chat or command arguments.
+
+```bash
+# Read-only checklist; no installation or credential writes:
+curl -fsSL https://raw.githubusercontent.com/jbellsolutions/ghl-super-hub/main/install-agent.sh | bash -s -- --agent hermes --preflight
+# Explicit local knowledge only, suitable for noninteractive setup:
+curl -fsSL https://raw.githubusercontent.com/jbellsolutions/ghl-super-hub/main/install-agent.sh | bash -s -- --agent hermes --docs-only --non-interactive
+```
+
+`--preflight` emits JSON and returns 0 when ready or 2 when input is needed.
+`--non-interactive` installs only when requirements are satisfied; otherwise it returns
+the JSON checklist and code 2. If Python itself is missing, that requirement is reported
+first without downloading it; approve runtime setup interactively, then recheck.
+An existing `GHL_API_KEY` / `GHL_LOCATION_ID`, protected global credentials file,
+or `GHL_ENV_FILE` profile is reused. No GHL request is made during installation;
+configured credentials still need live permission/location verification.
+
 The installer downloads the latest release and SHA-256 checksum, verifies the ZIP,
 installs an isolated CLI/runtime, registers the native plugin, and checks the six MCP
 tools. It uses user-local directories without sudo or shell-profile edits. Claude
@@ -19,7 +45,7 @@ use WSL on native Windows. Network/organization/agent trust prompts still apply.
 A new agent session or MCP reconnect may be required. Discover the namespaced
 `ghl-operator` skill through your agent's skill listing.
 
-### Connect your account once
+### Change your connection later
 
 ```bash
 ~/.local/bin/ghl hub connect

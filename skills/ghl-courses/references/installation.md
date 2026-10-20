@@ -9,3 +9,9 @@ For a normal source checkout, use `./ghl` at the repository root. Use `ghl hub c
 to save credentials through a hidden terminal prompt. Existing `GHL_API_KEY`,
 `GHL_LOCATION_ID` and explicit `--env-file` profiles are supported. Installing a
 plugin does not authorize launching campaigns or changing live GHL data.
+
+For installation or missing setup, use the repository's `INSTALL-AGENT.md` protocol:
+run `--preflight`, ask for missing prerequisites/choices before installing, and use
+secure secret entry or a hidden terminal prompt. Never request tokens in chat.
+Choose `--docs-only` only with the user's explicit preference. For dashboard work,
+check browser/Orgo connectivity and GHL login before starting the task.

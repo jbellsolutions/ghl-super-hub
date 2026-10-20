@@ -14,8 +14,9 @@
 
 | Case | Result | Scope |
 | --- | --- | --- |
-| Full offline test suite | 38 passed | Source catalog, MCP, tenant isolation, installer, credentials and transport |
+| Full offline test suite | 45 passed | Source catalog, MCP, tenant isolation, installer, credentials and transport |
 | Fresh installation into a temporary HOME with spaces | Passed | Real Python venv/pip, release extraction, CLI and MCP; native agent commands stubbed |
+| v2.3 docs-only fresh + repeat | Passed | Real release extraction, venv/pip, CLI and MCP; native manager stubbed; no credentials created |
 | Immediate repeat installation | Passed | Existing release reused; native registration repeated without destructive config edits |
 | Python fallback | User-local uv acquired; usable Python 3.11.2 selected; shell profiles unchanged | Real fallback branch with unavailable Python candidates simulated |
 | Fresh + repeat timing | 7.41 seconds together on this sandbox | Not a cross-platform performance guarantee |
@@ -25,7 +26,10 @@
 | Wrong release checksum | Fails before native registration | Automated test |
 | Traversal / symlink archive entries | Rejected | Automated test |
 | Existing unrelated `ghl` executable | Preserved by installer | Installer code boundary; no overwrite flag |
-| Missing target agent | Fails before download | Automated test |
+| Missing prerequisites | JSON checklist before download; agent, Git, connection and writable paths checked | Automated tests |
+| Interactive preflight with piped stdin | Real pseudo-terminal: hidden token entry or explicit docs-only choice; no release installation | Automated test with synthetic token |
+| Missing Python without consent | Exit 2 checklist; no download in noninteractive mode | Automated test |
+| Read-only preflight | Exit 0 when ready; no release download or installation | Automated test |
 | Credentials | Hidden prompt, no token echo, mode 0600, newline injection refused | Automated tests with synthetic tokens only |
 | Hermes portable manifest | Nine skills, one MCP server, zero diagnostics | Upstream `hermes_cli/agent_plugins.py` parser in an isolated harness |
 | Skill frontmatter | All nine pass | Skill-creator quick validator |

@@ -2,6 +2,7 @@
 """Verified release installation plus native Claude Code / Hermes plugin registration."""
 import argparse
 import hashlib
+import getpass
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,7 @@ import sys
 import tempfile
 import urllib.request
 import zipfile
+import warnings
 
 REPO='jbellsolutions/ghl-super-hub'
 
@@ -52,6 +54,98 @@ def agents(target):
     if not found or any(not exe for exe in found.values()):raise ValueError('Install Claude Code or Hermes first, or run this in the agent’s terminal. Select --agent claude, hermes, or both.')
     return found
 
+def credential_file():
+    return Path(os.environ.get('GHL_ENV_FILE') or str(Path(os.environ.get('XDG_CONFIG_HOME') or str(Path.home()/'.config'))/'ghl-super-hub/credentials.env')).expanduser()
+
+def has_credentials():
+    values={}
+    path=credential_file()
+    try:lines=path.read_text().splitlines() if path.is_file() else []
+    except OSError:lines=[]
+    if lines:
+        for line in lines:
+            line=line.strip()
+            if not line or line.startswith('#') or '=' not in line:continue
+            key,value=line.split('=',1);values[key.strip()]=value.strip().strip('"\'')
+    for key in ('GHL_API_KEY','GHL_LOCATION_ID'):
+        if os.environ.get(key):values[key]=os.environ[key]
+    return all(values.get(key,'').strip() and values[key]!='pit-xxxxxxxx' for key in ('GHL_API_KEY','GHL_LOCATION_ID'))
+
+def preflight(args):
+    """Read-only inventory; never install, save secrets, or launch an agent."""
+    needs=[];found={}
+    if sys.platform not in ('darwin','linux'):needs.append({'id':'platform','action':'Use macOS, Linux, Orgo, or a WSL terminal.'})
+    if not shutil.which('git'):needs.append({'id':'git','action':'Install Git using your operating system package manager, then retry.'})
+    try:found=agents(args.agent)
+    except ValueError:
+        needs.append({'id':'agent','action':'Install the selected Claude Code or Hermes CLI, or run this in its terminal; then retry. Select --agent claude, hermes, or both.'})
+    paths=[Path(os.environ.get('XDG_DATA_HOME') or str(Path.home()/'.local/share'))/'ghl-super-hub',Path.home()/'.local/bin']
+    if not args.docs_only:paths.append(credential_file())
+    for path in paths:
+        parent=path
+        while not parent.exists() and parent!=parent.parent:parent=parent.parent
+        if not os.access(parent,os.W_OK|os.X_OK):needs.append({'id':'writable_path','action':'Choose a writable user directory for '+str(path)})
+    configured=has_credentials()
+    if not configured and not args.docs_only:
+        needs.append({'id':'ghl_connection','action':'Provide GHL_API_KEY and GHL_LOCATION_ID through a secure secret tool or hidden terminal prompt, or explicitly choose --docs-only.'})
+    return {'status':'needs_input' if needs else 'ready','agents':list(found),'account_configured':configured,'mode':'documentation-only' if args.docs_only else 'connected','needs':needs},found
+
+def terminal_prompt(terminal,message,default=None):
+    sys.stderr.write(message);sys.stderr.flush()
+    value=terminal.readline()
+    if not value:raise EOFError('Setup paused: no input received. Run again in an interactive terminal.')
+    return value.strip() or default
+
+def save_connection(token,location):
+    if not token or not location or any(c in token+location for c in '\r\n\x00'):raise ValueError('Use a nonempty single-line token and location ID')
+    path=credential_file();path.parent.mkdir(parents=True,exist_ok=True,mode=0o700)
+    fd,name=tempfile.mkstemp(prefix='.credentials-',dir=path.parent)
+    try:
+        with os.fdopen(fd,'w') as out:out.write('GHL_API_KEY='+token+'\nGHL_LOCATION_ID='+location+'\n')
+        Path(name).replace(path);path.chmod(0o600)
+    finally:
+        if Path(name).exists():Path(name).unlink()
+    # Reuse the same connection during this install; never place secrets in subprocess arguments.
+    os.environ['GHL_API_KEY']=token;os.environ['GHL_LOCATION_ID']=location
+
+def prepare(args):
+    report,found=preflight(args)
+    if args.preflight:
+        print(json.dumps(report,indent=2));return None if report['needs'] else found
+    if not report['needs']:return found
+    if args.non_interactive:
+        print(json.dumps(report,indent=2));return None
+    try:terminal=open('/dev/tty','r')
+    except OSError:
+        print(json.dumps(report,indent=2))
+        print('Setup needs input before installation. Run in an interactive terminal, or let your agent resolve this checklist using a secure secret tool. Never paste tokens into chat.',file=sys.stderr)
+        return None
+    with terminal:
+        while True:
+            report,found=preflight(args)
+            if not report['needs']:return found
+            print('Before installation:')
+            for item in report['needs']:print('- '+item['action'])
+            blockers=[item for item in report['needs'] if item['id']!='ghl_connection']
+            if blockers:
+                answer=terminal_prompt(terminal,'Resolve the items above, then [r]echeck, or [q]uit for now [q]: ','q')
+                if answer.lower()!='r':return None
+                continue
+            choice=terminal_prompt(terminal,'Connect GHL now [c], install documentation only [d], or quit [q]? [c]: ','c').lower()
+            if choice=='d':args.docs_only=True;return found
+            if choice!='c':return None
+            # getpass opens /dev/tty even when this script was downloaded through a pipe.
+            # Refuse its echoing fallback: a token must never be visible in a log.
+            with warnings.catch_warnings():
+                warnings.simplefilter('error',getpass.GetPassWarning)
+                token=getpass.getpass('GHL Private Integration / OAuth access token (hidden): ',stream=sys.stderr).strip()
+            location=terminal_prompt(terminal,'GHL location / sub-account ID: ','')
+            if not token or not location or any(c in token+location for c in '\r\n\x00'):
+                print('Both values must be nonempty and single-line. Please try again.');continue
+            save_connection(token,location)
+            print('Connection saved privately. Token permissions and location access still require a live read.')
+            return found
+
 def register(found):
     for name,exe in found.items():
         if name=='claude':
@@ -68,9 +162,15 @@ def verify(python):
     if len(responses)!=2 or 'serverInfo' not in responses[0].get('result',{}) or len(responses[1].get('result',{}).get('tools',[]))!=6:raise ValueError('MCP verification did not discover all six tools')
 
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--agent',choices=['auto','claude','hermes','both'],default='auto');parser.add_argument('--version',help='GitHub release tag; default is the latest published release');args=parser.parse_args()
-    found=agents(args.agent)
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--agent',choices=['auto','claude','hermes','both'],default='auto');parser.add_argument('--version',help='GitHub release tag; default is the latest published release')
+    parser.add_argument('--preflight',action='store_true',help='Read-only JSON checklist; exit 2 when input is needed')
+    parser.add_argument('--non-interactive',action='store_true',help='Return a checklist instead of prompting when something is missing')
+    parser.add_argument('--docs-only',action='store_true',help='Explicitly install local knowledge/tools without an account connection')
+    args=parser.parse_args()
     if args.version and not re.fullmatch(r'v\d+\.\d+\.\d+',args.version):raise ValueError('Use a release tag such as v2.2.0')
+    found=prepare(args)
+    if found is None:return 2
+    if args.preflight:return 0
     release_url='https://github.com/'+REPO+'/releases/'+('download/'+args.version if args.version else 'latest/download')
     base=Path(os.environ.get('XDG_DATA_HOME',str(Path.home()/'.local/share')))/'ghl-super-hub'
     releases=base/'releases';releases.mkdir(parents=True,exist_ok=True)
@@ -107,9 +207,11 @@ def main():
     print('\nInstalled for '+', '.join(found)+'. Verified all six MCP tools.')
     print('CLI: '+str(root/'ghl'))
     print('Next: start a new agent session, then use the ghl-operator skill.')
-    print('Connect GHL once with: '+shlex.quote(str(root/'ghl'))+' hub connect')
+    if args.docs_only:print('Documentation-only mode. To connect later: '+shlex.quote(str(root/'ghl'))+' hub connect')
+    else:print('GHL connection configured. Verify the intended location with a read before any mutation.')
     print('No GHL data was changed. Agent trust/permission prompts still apply.')
 
 if __name__=='__main__':
-    try:main()
+    try:sys.exit(main())
+    except (EOFError,KeyboardInterrupt):sys.exit('Setup paused. Run again when ready; never share tokens in chat.')
     except Exception as exc:sys.exit('Installation stopped: '+str(exc))

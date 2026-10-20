@@ -22,18 +22,24 @@ Or **drop [INSTALL-AGENT.md](INSTALL-AGENT.md) into Claude Code or Hermes** and 
 installs the CLI and native plugin, and checks all six MCP tools. Use
 `bash -s -- --agent claude` or `bash -s -- --agent hermes` to choose one explicitly.
 
-Start a new agent session if needed, then connect your account once:
+Before installing, setup checks the agent, Git, writable paths and account connection.
+It asks for anything missing first. Enter the GHL token through a hidden terminal
+prompt, use an existing secure configuration, or choose documentation-only mode.
+Credentials stay outside plugin caches with private permissions. Missing Python
+requires approval before a user-local runtime download; no sudo or shell-profile edits.
+
+For agent-driven installation, use `--preflight` for a read-only JSON checklist and
+`--non-interactive` to stop with that checklist instead of waiting for a prompt.
+Use `--docs-only` only when you explicitly want local knowledge without account setup.
+Start a new agent session if needed. To change the connection later:
 
 ```bash
 ~/.local/bin/ghl hub connect
 ```
 
-The token prompt is hidden. Credentials live outside plugin caches, so updates do
-not replace them. Installation works on macOS, Linux, Orgo and WSL, with an existing
-Claude Code or Hermes CLI. It finds Python automatically or installs a user-local
-uv-managed runtime; no sudo or shell-profile edits. Host permission prompts and
-GHL/Orgo authentication still apply. No installer can guarantee zero issues on
-every machine; failures stop with a concrete error.
+Supports macOS, Linux, Orgo and WSL with an existing Claude Code or Hermes CLI.
+Host permissions, network restrictions and GHL/Orgo authentication still apply.
+Unexpected download/provider failures are reported with their actual cause.
 
 [Full setup, native plugin commands and manual installation](docs/INSTALL.md).
 Separate tenants use protected files: `ghl --env-file /secure/tenant.env ...`.

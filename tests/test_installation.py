@@ -2,6 +2,9 @@ import hashlib
 import io
 import json
 import os
+import pty
+import select
+import time
 from pathlib import Path
 import stat
 import subprocess
@@ -56,9 +59,82 @@ class Installer(unittest.TestCase):
             def download(url,path=None):
                 if path:Path(path).write_bytes(b'wrong archive')
                 else:return ('0'*64+'  ghl-super-hub.zip\n').encode()
-            with patch.dict(os.environ,{'XDG_DATA_HOME':directory}),patch.object(sys,'argv',['setup','--agent','claude']),patch('scripts.agent_setup.agents',return_value={'claude':'stub'}),patch('scripts.agent_setup.download',side_effect=download),patch('scripts.agent_setup.register') as register:
+            with patch.dict(os.environ,{'XDG_DATA_HOME':directory}),patch.object(sys,'argv',['setup','--agent','claude','--docs-only']),patch('scripts.agent_setup.agents',return_value={'claude':'stub'}),patch('scripts.agent_setup.download',side_effect=download),patch('scripts.agent_setup.register') as register:
                 with self.assertRaisesRegex(ValueError,'checksum mismatch'):agent_setup.main()
                 register.assert_not_called()
+    def test_preflight_collects_missing_requirements_without_mutations(self):
+        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'XDG_CONFIG_HOME':directory,'GHL_API_KEY':'','GHL_LOCATION_ID':''}),patch('scripts.agent_setup.shutil.which',return_value=None),patch('scripts.agent_setup.download') as download:
+            args=type('Args',(),{'agent':'both','docs_only':False})()
+            report,found=agent_setup.preflight(args)
+            self.assertEqual(found,{})
+            self.assertEqual({item['id'] for item in report['needs']},{'git','agent','ghl_connection'})
+            self.assertFalse((Path(directory)/'ghl-super-hub').exists());download.assert_not_called()
+    def test_noninteractive_missing_connection_stops_before_download(self):
+        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'XDG_CONFIG_HOME':directory,'GHL_API_KEY':'','GHL_LOCATION_ID':''}),patch.object(sys,'argv',['setup','--non-interactive']),patch('scripts.agent_setup.agents',return_value={'claude':'stub'}),patch('scripts.agent_setup.download') as download,patch('sys.stdout',new_callable=io.StringIO) as output:
+            self.assertEqual(agent_setup.main(),2);download.assert_not_called()
+            report=json.loads(output.getvalue());self.assertEqual(report['status'],'needs_input')
+            self.assertIn('ghl_connection',[item['id'] for item in report['needs']])
+    def test_docs_only_preflight_is_read_only_and_needs_no_token(self):
+        with patch.object(sys,'argv',['setup','--preflight','--docs-only']),patch('scripts.agent_setup.agents',return_value={'hermes':'stub'}),patch('scripts.agent_setup.download') as download,patch('sys.stdout',new_callable=io.StringIO) as output:
+            self.assertEqual(agent_setup.main(),0);download.assert_not_called()
+            self.assertEqual(json.loads(output.getvalue())['mode'],'documentation-only')
+    def test_preflight_reuses_private_credentials_without_disclosing_them(self):
+        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'XDG_CONFIG_HOME':directory,'GHL_API_KEY':'','GHL_LOCATION_ID':''}):
+            agent_setup.save_connection('pit-private-test','tenant-test')
+            self.assertEqual(agent_setup.credential_file().stat().st_mode & 0o777,0o600)
+            args=type('Args',(),{'agent':'claude','docs_only':False})()
+            with patch('scripts.agent_setup.agents',return_value={'claude':'stub'}):report,_=agent_setup.preflight(args)
+            self.assertTrue(report['account_configured']);self.assertNotIn('pit-private-test',json.dumps(report))
+            with patch.dict(os.environ,{'GHL_API_KEY':'','GHL_LOCATION_ID':''}):self.assertTrue(agent_setup.has_credentials())
+    def test_prompt_eof_pauses_instead_of_looping(self):
+        with self.assertRaises(EOFError):agent_setup.terminal_prompt(io.StringIO(),'Continue? ')
+    def test_piped_install_prompts_on_tty_and_hides_token(self):
+        for mode in ('connect','docs'):
+            with self.subTest(mode=mode),tempfile.TemporaryDirectory() as directory:
+                code="""from scripts import agent_setup as a
+from unittest.mock import patch
+from types import SimpleNamespace
+args=SimpleNamespace(agent='claude',docs_only=False,preflight=False,non_interactive=False)
+with patch.object(a,'agents',return_value={'claude':'stub'}):
+    result=a.prepare(args)
+    print('PREFLIGHT_DONE',bool(result),args.docs_only,flush=True)
+"""
+                env={**os.environ,'XDG_CONFIG_HOME':directory,'GHL_API_KEY':'','GHL_LOCATION_ID':'','GHL_ENV_FILE':''}
+                pid,fd=pty.fork()
+                if pid==0:
+                    os.chdir(ROOT)
+                    os.dup2(os.open(os.devnull,os.O_RDONLY),0)
+                    os.execve(sys.executable,[sys.executable,'-c',code],env)
+                output=b'';sent=set();deadline=time.monotonic()+12
+                prompts=[(b'quit [q]? [c]: ',b'c\n' if mode=='connect' else b'd\n'),(b'access token (hidden): ',b'pit-hidden-install-test\n'),(b'sub-account ID: ',b'tenant-install-test\n')]
+                try:
+                    while time.monotonic()<deadline:
+                        if not select.select([fd],[],[],0.2)[0]:continue
+                        try:chunk=os.read(fd,8192)
+                        except OSError:break
+                        if not chunk:break
+                        output+=chunk
+                        for prompt,response in prompts:
+                            if prompt in output and prompt not in sent:os.write(fd,response);sent.add(prompt)
+                        if b'PREFLIGHT_DONE' in output:break
+                    self.assertIn(b'PREFLIGHT_DONE True',output,output.decode())
+                    self.assertNotIn(b'pit-hidden-install-test',output)
+                    path=Path(directory)/'ghl-super-hub/credentials.env'
+                    self.assertEqual(path.exists(),mode=='connect')
+                    if path.exists():self.assertEqual(path.stat().st_mode & 0o777,0o600)
+                finally:
+                    os.close(fd)
+                    # Kill only our child if a failed prompt left it waiting.
+                    if os.waitpid(pid,os.WNOHANG)[0]==0:
+                        os.kill(pid,15);os.waitpid(pid,0)
+    def test_runtime_preflight_does_not_download_python_without_consent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for name in ['python3','python3.14','python3.13','python3.12','python3.11','python3.10']:
+                stub=Path(directory)/name;stub.write_text('#!/bin/sh\nexit 1\n');stub.chmod(0o755)
+            env={**os.environ,'PATH':directory+':/usr/bin:/bin','GHL_INSTALL_PREFLIGHT':'1','GHL_PYTHON':''}
+            result=subprocess.run(['bash',str(ROOT/'scripts/python-run.sh'),'ignored','--non-interactive'],env=env,text=True,capture_output=True)
+            self.assertEqual(result.returncode,2,result.stderr)
+            self.assertEqual(json.loads(result.stdout)['needs'][0]['id'],'python')
     def test_portable_mcp_tools_have_no_credentials(self):
         for file in ['mcp.json','.mcp.json']:
             data=json.loads((ROOT/file).read_text());server=data['mcpServers']['ghl-super-hub']
