@@ -15,3 +15,9 @@ run `--preflight`, ask for missing prerequisites/choices before installing, and 
 secure secret entry or a hidden terminal prompt. Never request tokens in chat.
 Choose `--docs-only` only with the user's explicit preference. For dashboard work,
 check browser/Orgo connectivity and GHL login before starting the task.
+
+Hermes one-command setup installs skills and merges MCP configuration directly;
+portable plugin-manager support is optional. Preserve `HERMES_HOME`. An existing
+protected tenant file can be selected with `--credentials-file /secure/tenant.env`;
+0600 is correct and does not require execute permission. The Orgo Hermes CLI at
+`/opt/hermes/.venv/bin/hermes` is automatically detected outside PATH.

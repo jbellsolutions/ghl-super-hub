@@ -37,13 +37,40 @@ or `GHL_ENV_FILE` profile is reused. No GHL request is made during installation;
 configured credentials still need live permission/location verification.
 
 The installer downloads the latest release and SHA-256 checksum, verifies the ZIP,
-installs an isolated CLI/runtime, registers the native plugin, and checks the six MCP
+installs an isolated CLI/runtime, configures the agent, and checks the six MCP
 tools. It uses user-local directories without sudo or shell-profile edits. Claude
 Code or Hermes and its native plugin prerequisites (including Git) must already be installed. Supported: macOS, Linux, Orgo and WSL;
 use WSL on native Windows. Network/organization/agent trust prompts still apply.
 
 A new agent session or MCP reconnect may be required. Discover the namespaced
 `ghl-operator` skill through your agent's skill listing.
+
+### Hermes compatibility and existing credentials
+
+Hermes setup uses its stable skills directory and `mcp_servers` configuration,
+rather than requiring portable `plugin.json` support in an older Hermes release.
+It installs all nine skills under `${HERMES_HOME:-~/.hermes}/skills`, merges one
+`ghl-super-hub` server into `config.yaml`, and saves a private configuration backup.
+Other servers, model settings and plugin enablement are preserved. YAML comments
+may be reformatted; the original remains in the backup. Only installer-owned skills
+and its unchanged server entry are updated on reruns. Conflicts are reported during
+preflight for review. No Hermes agent or gateway restart is launched automatically.
+
+The Orgo path `/opt/hermes/.venv/bin/hermes` is detected even outside PATH.
+For custom layouts, set `GHL_HERMES_BIN` and `GHL_HERMES_PYTHON` to the existing
+CLI/interpreter. Its Python must already include PyYAML; the installer adds no
+dependency to Hermes. Keep `HERMES_HOME` set to the intended active profile.
+
+For an existing protected tenant file, add this option to both preflight and install:
+
+```text
+--credentials-file /secure/location-a.env
+```
+
+A credentials file should have mode `0600`; it never needs execute permission.
+An explicitly supplied file is referenced by path in MCP config; its token is not copied
+into YAML. Environment-only credentials require the Hermes process to inherit them;
+a protected profile is preferable for persistent gateways.
 
 ### Change your connection later
 
@@ -68,7 +95,8 @@ Claude Code:
 /plugin install ghl-super-hub@ghl-super-hub
 ```
 
-Hermes:
+Hermes (recent releases with portable Agent Plugins support only; the one-command
+installer uses skills + MCP for broader compatibility):
 
 ```bash
 hermes plugins install jbellsolutions/ghl-super-hub --enable

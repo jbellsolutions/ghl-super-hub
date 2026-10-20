@@ -7,6 +7,9 @@ https://github.com/jbellsolutions/ghl-super-hub for the agent I am using.
 
 1. Identify whether this session uses Claude Code or Hermes. Check for the selected
    CLI, Git, curl, a writable user directory and a usable Python 3.10+ with venv.
+   For Hermes, also inspect `/opt/hermes/.venv/bin/hermes` before concluding it is
+   missing. The installer discovers that location automatically; explicit overrides
+   are `GHL_HERMES_BIN` and `GHL_HERMES_PYTHON`. Keep the agent’s active `HERMES_HOME`.
    Ask me for any missing prerequisite or needed approval **before** installing.
    Do not install an entire agent, use sudo, or download a runtime without approval.
 2. Run the read-only checklist in the same user account/environment as the agent:
@@ -23,7 +26,10 @@ https://github.com/jbellsolutions/ghl-super-hub for the agent I am using.
 3. If credentials are missing, ask whether I want to connect GHL now or install
    documentation only. Use the environment's secure secret-entry tool to provide
    `GHL_API_KEY` and `GHL_LOCATION_ID`, or direct me to run the interactive command
-   in my terminal for hidden token entry. Never ask for a token in chat or pass one
+   in my terminal for hidden token entry. If a protected tenant profile already
+   exists, pass its path with `--credentials-file /secure/tenant.env` in both
+   preflight and install. A 0600 file is correct; never make it executable.
+   Never ask for a token in chat or pass one
    in a shell argument. Preserve existing tenant profiles. Documentation-only mode
    requires my explicit choice; do not silently skip the connection.
 4. Once requirements are resolved, install with:
@@ -35,7 +41,11 @@ https://github.com/jbellsolutions/ghl-super-hub for the agent I am using.
    Substitute `hermes` as appropriate. Add `--docs-only` only if I chose that mode.
    An interactive terminal can omit `--non-interactive` and answer setup prompts.
    The installer verifies the release checksum, installs the isolated CLI/runtime,
-   registers the native plugin, and verifies all six MCP tools. Respect host trust
+   configures the agent, and verifies all six MCP tools. Claude uses its native
+   plugin; Hermes installs nine skills and merges MCP into its existing config
+   with a private backup. This avoids requiring portable-plugin support. Hermes’s
+   Python must already provide PyYAML. Do not retry the old Hermes plugin-manager
+   route or force-replace a partial plugin installation. Respect host trust
    prompts. On an unexpected failure, report the actual cause without bypassing
    permissions or replacing unrelated settings.
 5. Use the printed CLI path and `hub doctor`. Discover the installed `ghl-operator`

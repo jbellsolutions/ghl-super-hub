@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verified release installation plus native Claude Code / Hermes plugin registration."""
+"""Verified release installation for Claude Code plugins and Hermes skills/MCP."""
 import argparse
 import hashlib
 import getpass
@@ -18,6 +18,45 @@ import zipfile
 import warnings
 
 REPO='jbellsolutions/ghl-super-hub'
+
+def hermes_home():
+    return Path(os.environ.get('HERMES_HOME') or str(Path.home()/'.hermes')).expanduser()
+
+def find_agent(name):
+    override=os.environ.get('GHL_'+name.upper()+'_BIN')
+    if override:return override if Path(override).is_file() and os.access(override,os.X_OK) else None
+    found=shutil.which(name)
+    if found or name!='hermes':return found
+    for path in (Path('/opt/hermes/.venv/bin/hermes'),hermes_home()/'hermes-agent/.venv/bin/hermes',Path.home()/'.local/bin/hermes'):
+        if path.is_file() and os.access(path,os.X_OK):return str(path)
+    return None
+
+def hermes_python(exe):
+    override=os.environ.get('GHL_HERMES_PYTHON')
+    candidates=[Path(override)] if override else [Path(exe).parent/'python',Path(exe).resolve().parent/'python']
+    if not override:
+        try:
+            first=Path(exe).read_text().splitlines()[0]
+            if first.startswith('#!/') and len(shlex.split(first[2:]))==1 and Path(first[2:]).name.startswith('python'):candidates.append(Path(first[2:]))
+        except (OSError,UnicodeError):pass
+    for path in candidates:
+        if path.is_file() and os.access(path,os.X_OK):
+            try:result=subprocess.run([str(path),'-c','import sys,yaml; assert sys.version_info >= (3,10)'],capture_output=True,timeout=15)
+            except (OSError,subprocess.TimeoutExpired):continue
+            if result.returncode==0:return path
+    return None
+
+def check_hermes(exe):
+    python=hermes_python(exe)
+    if not python:return ['Set GHL_HERMES_PYTHON to the Hermes Python interpreter (with its existing PyYAML dependency).']
+    helper=Path(__file__).with_name('hermes_setup.py')
+    try:result=subprocess.run([str(python),str(helper),'--check','--home',str(hermes_home())],text=True,capture_output=True,timeout=20)
+    except (OSError,subprocess.TimeoutExpired):return ['Hermes profile inspection could not run; check GHL_HERMES_PYTHON and profile access.']
+    try:
+        report=json.loads(result.stdout)
+        if result.returncode and not report.get('problems'):return ['Hermes profile inspection did not complete.']
+        return report.get('problems',[])
+    except ValueError:return ['Hermes profile inspection failed; check the interpreter and configuration access.']
 
 def download(url,path=None):
     request=urllib.request.Request(url,headers={'User-Agent':'ghl-super-hub-installer','Accept':'application/vnd.github+json'})
@@ -49,7 +88,7 @@ def run(command,already_ok=False):
 
 def agents(target):
     names=['claude','hermes'] if target in ('auto','both') else [target]
-    found={name:shutil.which(name) for name in names}
+    found={name:find_agent(name) for name in names}
     if target=='auto':found={name:exe for name,exe in found.items() if exe}
     if not found or any(not exe for exe in found.values()):raise ValueError('Install Claude Code or Hermes first, or run this in the agent’s terminal. Select --agent claude, hermes, or both.')
     return found
@@ -80,7 +119,12 @@ def preflight(args):
     except ValueError:
         needs.append({'id':'agent','action':'Install the selected Claude Code or Hermes CLI, or run this in its terminal; then retry. Select --agent claude, hermes, or both.'})
     paths=[Path(os.environ.get('XDG_DATA_HOME') or str(Path.home()/'.local/share'))/'ghl-super-hub',Path.home()/'.local/bin']
-    if not args.docs_only:paths.append(credential_file())
+    if 'hermes' in found:
+        paths.extend([hermes_home(),hermes_home()/'skills'])
+        for problem in check_hermes(found['hermes']):needs.append({'id':'hermes_setup','action':problem})
+    # Credentials are data files: directory traversal permission is checked on the
+    # parent, never execute permission on the file itself (0600 is correct).
+    if not args.docs_only and not has_credentials():paths.append(credential_file().parent)
     for path in paths:
         parent=path
         while not parent.exists() and parent!=parent.parent:parent=parent.parent
@@ -151,9 +195,12 @@ def register(found):
         if name=='claude':
             run([exe,'plugin','marketplace','add',REPO],already_ok=True)
             run([exe,'plugin','install','ghl-super-hub@ghl-super-hub','--scope','user'],already_ok=True)
-        else:
-            run([exe,'plugins','install',REPO,'--enable'],already_ok=True)
-            run([exe,'plugins','enable','ghl-super-hub'],already_ok=True)
+        else:raise ValueError('Hermes requires register_hermes(root, exe), not the version-dependent plugin manager')
+
+def register_hermes(root,exe):
+    python=hermes_python(exe)
+    if not python:raise ValueError('Hermes interpreter was unavailable after preflight; set GHL_HERMES_PYTHON and retry')
+    run([str(python),str(root/'scripts/hermes_setup.py'),'--home',str(hermes_home()),'--root',str(root),'--credentials',str(credential_file())])
 
 def verify(python):
     messages=[{'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2024-11-05','capabilities':{},'clientInfo':{'name':'installer','version':'1'}}},{'jsonrpc':'2.0','id':2,'method':'tools/list'}]
@@ -163,10 +210,12 @@ def verify(python):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--agent',choices=['auto','claude','hermes','both'],default='auto');parser.add_argument('--version',help='GitHub release tag; default is the latest published release')
+    parser.add_argument('--credentials-file',type=Path,help='Existing protected tenant profile (path only; never put a token in arguments)')
     parser.add_argument('--preflight',action='store_true',help='Read-only JSON checklist; exit 2 when input is needed')
     parser.add_argument('--non-interactive',action='store_true',help='Return a checklist instead of prompting when something is missing')
     parser.add_argument('--docs-only',action='store_true',help='Explicitly install local knowledge/tools without an account connection')
     args=parser.parse_args()
+    if args.credentials_file:os.environ['GHL_ENV_FILE']=str(args.credentials_file.expanduser().resolve())
     if args.version and not re.fullmatch(r'v\d+\.\d+\.\d+',args.version):raise ValueError('Use a release tag such as v2.2.0')
     found=prepare(args)
     if found is None:return 2
@@ -198,7 +247,8 @@ def main():
     marker=subprocess.check_output([str(python),'-c',code,str(root)],text=True)
     (root/'.ghl-runtime.json').write_text(marker)
     verify(python)
-    register(found)
+    register({name:exe for name,exe in found.items() if name!='hermes'})
+    if 'hermes' in found:register_hermes(root,found['hermes'])
     launcher=Path.home()/'.local/bin/ghl';launcher.parent.mkdir(parents=True,exist_ok=True)
     content='#!/bin/sh\n# Managed by ghl-super-hub installer\nexec bash '+shlex.quote(str(root/'ghl'))+' "$@"\n'
     if not launcher.exists() and not launcher.is_symlink() or launcher.is_file() and not launcher.is_symlink() and '# Managed by ghl-super-hub installer' in launcher.read_text():

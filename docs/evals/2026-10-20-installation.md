@@ -3,6 +3,7 @@
 ## Implemented
 
 - One-command bootstrap for existing Claude Code and/or Hermes installations.
+- v2.3.1: Hermes compatibility setup via skills + MCP; no Hermes plugin-manager command.
 - SHA-256 release verification before unpacking or registering the plugin.
 - User-local isolated CLI/runtime; a managed Python fallback via uv when necessary.
 - Claude Code marketplace/plugin manifests and an Agent Plugins v1 Hermes package.
@@ -14,7 +15,11 @@
 
 | Case | Result | Scope |
 | --- | --- | --- |
-| Full offline test suite | 45 passed | Source catalog, MCP, tenant isolation, installer, credentials and transport |
+| Protected existing 0600 credentials | Accepted by preflight without execute permission | Regression test for reported install failure |
+| Orgo Hermes absent from PATH | `/opt/hermes/.venv/bin/hermes` discovered | Regression test |
+| Hermes compatibility config | Actual PyYAML merge preserves unrelated settings; private backup; nine skills and six tools from configured stdio command | Isolated real configuration/MCP test; no agent process |
+| Managed install repeat + collisions | Repeat succeeds; customized MCP and unowned skills preserved/reported | Automated tests |
+| Full offline test suite | 52 passed | Source catalog, MCP, tenant isolation, installer, credentials and transport |
 | Fresh installation into a temporary HOME with spaces | Passed | Real Python venv/pip, release extraction, CLI and MCP; native agent commands stubbed |
 | v2.3 docs-only fresh + repeat | Passed | Real release extraction, venv/pip, CLI and MCP; native manager stubbed; no credentials created |
 | Immediate repeat installation | Passed | Existing release reused; native registration repeated without destructive config edits |
@@ -37,7 +42,8 @@
 
 The upstream parser harness supplied YAML parsing and inert declaration imports;
 no Hermes agent or plugin-manager process was launched. No actual Claude Code
-plugin-manager process was launched either. Native command argument shapes were
+plugin-manager process was launched either. Hermes compatibility setup now writes
+its documented skill/config surfaces directly and does not invoke a plugin manager. Native command argument shapes were
 checked against current official docs/source and exercised with stub executables.
 
 Linux/macOS GitHub Actions runs the offline suite and package builder. See the

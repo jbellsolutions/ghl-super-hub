@@ -1,11 +1,14 @@
 # Build status — updated 2026-10-20
 
-## One-command installation (v2.3.0)
+## One-command installation (v2.3.1)
 
 Native Claude Code and Hermes plugin packages, a single-command release installer,
 managed Python fallback, persistent sidecar runtimes, and hidden credential setup
 are included. Preflight collects missing prerequisites before installation and asks
 for secure GHL connection setup or an explicit documentation-only choice. A drop-in INSTALL-AGENT.md provides the same flow to either agent.
+Hermes now uses direct skill installation and backed-up MCP configuration for
+compatibility with releases lacking portable plugins. Protected credential files
+are accepted without execute permission, and Orgo’s Hermes path is detected.
 See [installation evidence](evals/2026-10-20-installation.md) for tested cases and limits.
 
 ## Shipped in this checkout
@@ -24,7 +27,7 @@ See [installation evidence](evals/2026-10-20-installation.md) for tested cases a
 
 ## Validation performed
 
-`python -m unittest discover -s tests -v`: **45 tests passed**. Checks include source
+`python -m unittest discover -s tests -v`: **52 tests passed**. Checks include source
 catalog consistency, tenant isolation, no implicit location, no-network dry runs,
 required body validation, unsafe path rejection, retries, redirect refusal, empty
 responses, multipart handle closure, public OAuth form transport, CLI location handling,

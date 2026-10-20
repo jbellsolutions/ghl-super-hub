@@ -16,7 +16,7 @@ import zipfile
 from click.testing import CliRunner
 from ghl_hub.bootstrap import load_env
 from ghl_hub.connect import save_credentials, connect_command
-from scripts import agent_setup,plugin_runtime
+from scripts import agent_setup,plugin_runtime,hermes_setup
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -38,17 +38,16 @@ class Installer(unittest.TestCase):
             dest=Path(directory)/'out';agent_setup.unpack(p,dest)
             self.assertEqual((dest/'ghl').stat().st_mode & 0o777,0o755)
     def test_detection_does_not_silently_target_a_missing_agent(self):
-        with patch('scripts.agent_setup.shutil.which',return_value=None):
+        with patch('scripts.agent_setup.find_agent',return_value=None):
             for target in ['auto','claude','hermes','both']:
                 with self.subTest(target=target),self.assertRaises(ValueError):agent_setup.agents(target)
     def test_native_registration_uses_documented_managers(self):
         with patch('scripts.agent_setup.run') as run:
-            agent_setup.register({'claude':'/space path/claude','hermes':'/space path/hermes'})
+            agent_setup.register({'claude':'/space path/claude'})
             commands=[c.args[0] for c in run.call_args_list]
             self.assertEqual(commands[0],['/space path/claude','plugin','marketplace','add','jbellsolutions/ghl-super-hub'])
             self.assertEqual(commands[1][-2:],['--scope','user'])
-            self.assertEqual(commands[2][-1],'--enable')
-            self.assertEqual(commands[3],['/space path/hermes','plugins','enable','ghl-super-hub'])
+            self.assertEqual(len(commands),2)
     def test_existing_install_is_safe_to_repeat_but_real_errors_stop(self):
         already=subprocess.CompletedProcess([],1,stdout='Plugin already installed')
         denied=subprocess.CompletedProcess([],1,stdout='Permission denied')
@@ -63,7 +62,7 @@ class Installer(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'checksum mismatch'):agent_setup.main()
                 register.assert_not_called()
     def test_preflight_collects_missing_requirements_without_mutations(self):
-        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'XDG_CONFIG_HOME':directory,'GHL_API_KEY':'','GHL_LOCATION_ID':''}),patch('scripts.agent_setup.shutil.which',return_value=None),patch('scripts.agent_setup.download') as download:
+        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'XDG_CONFIG_HOME':directory,'GHL_API_KEY':'','GHL_LOCATION_ID':''}),patch('scripts.agent_setup.shutil.which',return_value=None),patch('scripts.agent_setup.find_agent',return_value=None),patch('scripts.agent_setup.download') as download:
             args=type('Args',(),{'agent':'both','docs_only':False})()
             report,found=agent_setup.preflight(args)
             self.assertEqual(found,{})
@@ -75,7 +74,7 @@ class Installer(unittest.TestCase):
             report=json.loads(output.getvalue());self.assertEqual(report['status'],'needs_input')
             self.assertIn('ghl_connection',[item['id'] for item in report['needs']])
     def test_docs_only_preflight_is_read_only_and_needs_no_token(self):
-        with patch.object(sys,'argv',['setup','--preflight','--docs-only']),patch('scripts.agent_setup.agents',return_value={'hermes':'stub'}),patch('scripts.agent_setup.download') as download,patch('sys.stdout',new_callable=io.StringIO) as output:
+        with patch.object(sys,'argv',['setup','--preflight','--docs-only']),patch('scripts.agent_setup.agents',return_value={'hermes':'stub'}),patch('scripts.agent_setup.check_hermes',return_value=[]),patch('scripts.agent_setup.download') as download,patch('sys.stdout',new_callable=io.StringIO) as output:
             self.assertEqual(agent_setup.main(),0);download.assert_not_called()
             self.assertEqual(json.loads(output.getvalue())['mode'],'documentation-only')
     def test_preflight_reuses_private_credentials_without_disclosing_them(self):
@@ -127,6 +126,27 @@ with patch.object(a,'agents',return_value={'claude':'stub'}):
                     # Kill only our child if a failed prompt left it waiting.
                     if os.waitpid(pid,os.WNOHANG)[0]==0:
                         os.kill(pid,15);os.waitpid(pid,0)
+    def test_protected_credential_file_is_not_required_to_be_executable(self):
+        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'GHL_ENV_FILE':str(Path(directory)/'.env'),'GHL_API_KEY':'','GHL_LOCATION_ID':''}):
+            save_credentials('pit-protected-test','tenant-test',Path(directory)/'.env')
+            self.assertFalse(os.access(Path(directory)/'.env',os.X_OK))
+            args=type('Args',(),{'agent':'claude','docs_only':False})()
+            with patch('scripts.agent_setup.agents',return_value={'claude':'stub'}):report,_=agent_setup.preflight(args)
+            self.assertEqual(report['status'],'ready',report)
+    def test_explicit_hermes_path_is_found_outside_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            executable=Path(directory)/'hermes';executable.write_text('#!/bin/sh\nexit 0\n');executable.chmod(0o755)
+            with patch.dict(os.environ,{'GHL_HERMES_BIN':str(executable)}),patch('scripts.agent_setup.shutil.which',return_value=None):
+                self.assertEqual(agent_setup.agents('hermes'),{'hermes':str(executable)})
+    def test_orgo_hermes_virtualenv_is_discovered_without_path_edits(self):
+        with patch.dict(os.environ,{'GHL_HERMES_BIN':''}),patch('scripts.agent_setup.shutil.which',return_value=None),patch.object(Path,'is_file',lambda path:str(path)=='/opt/hermes/.venv/bin/hermes'),patch('scripts.agent_setup.os.access',return_value=True):
+            self.assertEqual(agent_setup.agents('hermes'),{'hermes':'/opt/hermes/.venv/bin/hermes'})
+    def test_hermes_compatibility_registration_avoids_plugin_manager(self):
+        with patch('scripts.agent_setup.hermes_python',return_value=Path('/hermes/python')),patch('scripts.agent_setup.run') as run:
+            agent_setup.register_hermes(ROOT,'hermes')
+            command=run.call_args.args[0]
+            self.assertEqual(command[:2],['/hermes/python',str(ROOT/'scripts/hermes_setup.py')])
+            self.assertNotIn('plugins',command)
     def test_runtime_preflight_does_not_download_python_without_consent(self):
         with tempfile.TemporaryDirectory() as directory:
             for name in ['python3','python3.14','python3.13','python3.12','python3.11','python3.10']:
@@ -163,6 +183,34 @@ with patch.object(a,'agents',return_value={'claude':'stub'}):
             p=Path(directory)/'ghl';p.symlink_to(ROOT/'ghl')
             result=subprocess.run([str(p),'hub','operations','workflow','--limit','1'],text=True,capture_output=True)
             self.assertEqual(result.returncode,0,result.stderr);self.assertGreater(json.loads(result.stdout)['total'],0)
+
+class HermesCompatibility(unittest.TestCase):
+    def test_skills_mcp_backup_and_repeat_preserve_user_configuration(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory);config=home/'config.yaml'
+            original={'model':'user-choice','mcp_servers':{'other':{'command':'keep-this'}},'plugins':{'enabled':['other-plugin']}}
+            config.write_text(json.dumps(original));credentials=save_credentials('pit-never-serialize','tenant',home/'private.env')
+            first=hermes_setup.configure(ROOT,home,credentials,json.loads,json.dumps)
+            self.assertEqual(first['skills'],9);self.assertTrue(first['backup'])
+            self.assertEqual(Path(first['backup']).stat().st_mode & 0o777,0o600)
+            after=json.loads(config.read_text());self.assertEqual(after['model'],original['model'])
+            self.assertEqual(after['mcp_servers']['other'],original['mcp_servers']['other'])
+            self.assertEqual(after['plugins'],original['plugins']);self.assertNotIn('pit-never-serialize',config.read_text())
+            self.assertEqual(config.stat().st_mode & 0o777,0o600)
+            second=hermes_setup.configure(ROOT,home,credentials,json.loads,json.dumps)
+            self.assertIsNone(second['backup']);self.assertEqual(len(list((home/'skills').glob('ghl-*/SKILL.md'))),9)
+    def test_existing_unmanaged_skill_is_reported_before_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory);skill=home/'skills/ghl-operator';skill.mkdir(parents=True);(skill/'SKILL.md').write_text('user content')
+            self.assertTrue(hermes_setup.inspect_profile(home,json.loads))
+            with self.assertRaisesRegex(ValueError,'not managed'):hermes_setup.configure(ROOT,home,home/'absent.env',json.loads,json.dumps)
+            self.assertEqual((skill/'SKILL.md').read_text(),'user content');self.assertFalse((home/'config.yaml').exists())
+    def test_customized_server_is_preserved_and_invalid_yaml_is_not_logged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home=Path(directory);config=home/'config.yaml';config.write_text(json.dumps({'mcp_servers':{'ghl-super-hub':{'command':'custom'}}}))
+            problems=hermes_setup.inspect_profile(home,json.loads);self.assertIn('not managed',problems[0])
+            config.write_text('pit-private-syntax-error')
+            problems=hermes_setup.inspect_profile(home,json.loads);self.assertNotIn('pit-private',str(problems));self.assertIn('could not be parsed',problems[0])
 
 class AccountConnection(unittest.TestCase):
     def test_hidden_prompt_never_echoes_token_and_saves_mode_600(self):

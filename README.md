@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/jbellsolutions/ghl-super-hub/main/i
 
 Or **drop [INSTALL-AGENT.md](INSTALL-AGENT.md) into Claude Code or Hermes** and say:
 “Install this for me.” The installer detects the agent(s), verifies the release,
-installs the CLI and native plugin, and checks all six MCP tools. Use
+installs the CLI, configures the agent, and checks all six MCP tools. Use
 `bash -s -- --agent claude` or `bash -s -- --agent hermes` to choose one explicitly.
 
 Before installing, setup checks the agent, Git, writable paths and account connection.
@@ -36,6 +36,12 @@ Start a new agent session if needed. To change the connection later:
 ```bash
 ~/.local/bin/ghl hub connect
 ```
+
+Hermes setup installs nine skills and merges its MCP server into the active
+`HERMES_HOME/config.yaml`, backing up existing configuration. It discovers Orgo’s
+`/opt/hermes/.venv/bin/hermes` even when absent from PATH, and accepts protected
+credentials files without requiring execute permission. It uses Hermes’s existing
+Python/PyYAML; no dependency is added to the agent. Claude Code uses its native plugin.
 
 Supports macOS, Linux, Orgo and WSL with an existing Claude Code or Hermes CLI.
 Host permissions, network restrictions and GHL/Orgo authentication still apply.

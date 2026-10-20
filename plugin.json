@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "ghl-super-hub",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Nine HighLevel skills, a CLI, MCP tools, official API discovery and local documentation.",
   "author": {
     "name": "jbellsolutions",
