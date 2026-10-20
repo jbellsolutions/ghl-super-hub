@@ -21,7 +21,7 @@ Versioned API operations retain their own headers and namespace (`v3/DOMAIN`).
 
 | Component | Implemented | Verification |
 | --- | --- | --- |
-| CLI checkout installation | Yes, existing dependency set | Installed and run in this environment |
+| CLI / one-command installation | Verified release installer, native Claude Code/Hermes plugins | Clean-home + repeat install; plugin-manager commands stubbed; see installation evidence |
 | API catalog | 1,203 versioned operation entries | Every entry checked against its source path/method |
 | Generic API executor | JSON, URL-encoded forms, multipart, refs/basic validation | Offline transport/validation tests; no live endpoint sweep |
 | MCP server | Stdio initialization, discovery, execution and retrieval | Protocol/subprocess tests; no actual Hermes session supplied |

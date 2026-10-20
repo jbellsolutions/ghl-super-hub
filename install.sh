@@ -14,7 +14,7 @@ fi
 if [ "${1:-}" = "--link" ]; then
   mkdir -p "$HOME/.local/bin"
   if [ -e "$HOME/.local/bin/ghl" ] || [ -L "$HOME/.local/bin/ghl" ]; then
-    if [ "$(readlink -f "$HOME/.local/bin/ghl")" != "$PWD/ghl" ]; then
+    if [ ! "$HOME/.local/bin/ghl" -ef "$PWD/ghl" ]; then
       echo "Existing ~/.local/bin/ghl belongs to another installation; leaving it unchanged." >&2
       exit 1
     fi

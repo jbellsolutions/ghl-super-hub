@@ -79,3 +79,6 @@ def reindex_command(): output({'indexed':knowledge.rebuild()})
 def mcp_command():
     from .mcp import main
     main()
+
+from .connect import connect_command
+hub.add_command(connect_command)

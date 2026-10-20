@@ -15,6 +15,18 @@ workspace history. Credentials, original attachments, account-specific builders 
 sample account exports are excluded. The search database is generated locally from
 tracked article/specification sources; downloadable releases can include the index.
 
+## Share the one-command setup
+
+Send the repository URL plus [INSTALL-AGENT.md](../INSTALL-AGENT.md), or this command:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jbellsolutions/ghl-super-hub/main/install-agent.sh | bash
+```
+
+It detects installed agents; append `-s -- --agent claude` or `-s -- --agent hermes`
+to `bash` to select one. A GHL token and browser authentication remain one-time setup.
+The script verifies the published release checksum before installation.
+
 ## Work on this public repository
 
 Normal cloned repositories use ordinary commits and pull requests. Before pushing:

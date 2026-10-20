@@ -43,7 +43,7 @@ def dispatch(message):
     method=message.get('method'); identifier=message.get('id')
     if method=='initialize':
         version=message.get('params',{}).get('protocolVersion')
-        result=dict(protocolVersion=version if version in ('2024-11-05','2025-03-26','2025-06-18') else '2024-11-05',capabilities={'tools':{'listChanged':False}},serverInfo={'name':'ghl-super-hub','version':'2.1.0'})
+        result=dict(protocolVersion=version if version in ('2024-11-05','2025-03-26','2025-06-18') else '2024-11-05',capabilities={'tools':{'listChanged':False}},serverInfo={'name':'ghl-super-hub','version':'2.2.0'})
     elif method=='ping': result={}
     elif method=='tools/list': result={'tools':TOOLS}
     elif method=='tools/call':

@@ -54,7 +54,7 @@ def _loc(ctx: click.Context) -> str:
 @click.option("--json", "use_json", is_flag=True, help="Output as JSON")
 @click.option("--location-id", envvar="GHL_LOCATION_ID", default=None, help="GHL Location/Sub-account ID")
 @click.option("--experimental", is_flag=True, help="Enable experimental commands (UNOFFICIAL internal GHL API — own-account-only, uses your full Firebase session token)")
-@click.version_option("2.1.0", prog_name="cli-anything-gohighlevel")
+@click.version_option("2.2.0", prog_name="cli-anything-gohighlevel")
 @click.pass_context
 def cli(ctx, use_json, location_id, experimental):
     """GoHighLevel CLI — manage contacts, workflows, calendars, and more."""

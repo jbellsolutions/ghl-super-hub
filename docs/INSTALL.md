@@ -1,4 +1,65 @@
-# Run Hermes on Orgo with the HighLevel hub
+# Install for Claude Code or Hermes
+
+## Recommended: one command
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jbellsolutions/ghl-super-hub/main/install-agent.sh | bash
+```
+
+It detects the installed agent(s). To target one, append `-s -- --agent claude` or
+`-s -- --agent hermes` to `bash`. Or drop [INSTALL-AGENT.md](../INSTALL-AGENT.md)
+into the agent and ask it to follow the instructions.
+
+The installer downloads the latest release and SHA-256 checksum, verifies the ZIP,
+installs an isolated CLI/runtime, registers the native plugin, and checks the six MCP
+tools. It uses user-local directories without sudo or shell-profile edits. Claude
+Code or Hermes and its native plugin prerequisites (including Git) must already be installed. Supported: macOS, Linux, Orgo and WSL;
+use WSL on native Windows. Network/organization/agent trust prompts still apply.
+
+A new agent session or MCP reconnect may be required. Discover the namespaced
+`ghl-operator` skill through your agent's skill listing.
+
+### Connect your account once
+
+```bash
+~/.local/bin/ghl hub connect
+```
+
+The prompt hides the token. Credentials are stored with private permissions at
+`~/.config/ghl-super-hub/credentials.env` (or under `XDG_CONFIG_HOME`) and stay
+outside plugin caches/releases. The command does not contact GHL. Environment
+variables and explicit `--env-file` tenant profiles still work. Existing checkout
+`.env` files remain the default for manual source installs.
+
+### Native plugin commands
+
+If you prefer your agent's own installation UI:
+
+Claude Code:
+
+```text
+/plugin marketplace add jbellsolutions/ghl-super-hub
+/plugin install ghl-super-hub@ghl-super-hub
+```
+
+Hermes:
+
+```bash
+hermes plugins install jbellsolutions/ghl-super-hub --enable
+```
+
+Native-only installs automatically prepare their isolated runtime on first MCP use;
+the one-command installer prewarms it to reduce startup work. Cold installation can
+still exceed a host's startup timeout on a slow network; reconnect after preparation.
+No token is needed for local documentation search or API discovery.
+
+The plugin does not provision an Orgo computer or silently grant browser/account
+access. Follow the Orgo connection section below when you need dashboard work.
+
+## Manual source / advanced installation
+
+The remaining sections document manual installation and explicit MCP/profile setup.
+
 
 This is a portable checkout bundle, not an independently deployed agent service.
 Hermes is the agent, Orgo is its computer, and this package provides GHL tools and knowledge.

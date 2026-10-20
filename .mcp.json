@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "ghl-super-hub": {
+      "command": "bash",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/scripts/run-hub.sh",
+        "hub",
+        "mcp"
+      ],
+      "type": "stdio"
+    }
+  }
+}

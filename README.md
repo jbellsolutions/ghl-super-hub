@@ -11,24 +11,32 @@ MCP, nine agent skills, official documentation search, and dashboard procedures.
 Hermes runs the agent; Orgo provides its computer. A separate agent service is not
 required to use this bundle.
 
-## Start
+## Install in one command
 
 ```bash
-git clone https://github.com/jbellsolutions/ghl-super-hub.git
-cd ghl-super-hub
-bash install.sh --link
-# Configure GHL_API_KEY and GHL_LOCATION_ID in .env (never commit real credentials).
-./ghl hub doctor
-./ghl hub operations "workflow"
-./ghl hub docs search "affiliate campaign"
-./ghl hub call workflows:get-workflow --query '{"locationId":"YOUR_LOCATION"}'
-# Add --execute to send a prepared request.
-.venv/bin/python scripts/install_skills.py
+curl -fsSL https://raw.githubusercontent.com/jbellsolutions/ghl-super-hub/main/install-agent.sh | bash
 ```
 
-Follow [Hermes and Orgo installation](docs/INSTALL.md) for MCP configuration,
-computer access and account setup. Separate tenants use protected dotenv files:
-`./ghl --env-file /secure/tenant.env ...`. Dotenv is parsed as data, not executed.
+Or **drop [INSTALL-AGENT.md](INSTALL-AGENT.md) into Claude Code or Hermes** and say:
+“Install this for me.” The installer detects the agent(s), verifies the release,
+installs the CLI and native plugin, and checks all six MCP tools. Use
+`bash -s -- --agent claude` or `bash -s -- --agent hermes` to choose one explicitly.
+
+Start a new agent session if needed, then connect your account once:
+
+```bash
+~/.local/bin/ghl hub connect
+```
+
+The token prompt is hidden. Credentials live outside plugin caches, so updates do
+not replace them. Installation works on macOS, Linux, Orgo and WSL, with an existing
+Claude Code or Hermes CLI. It finds Python automatically or installs a user-local
+uv-managed runtime; no sudo or shell-profile edits. Host permission prompts and
+GHL/Orgo authentication still apply. No installer can guarantee zero issues on
+every machine; failures stop with a concrete error.
+
+[Full setup, native plugin commands and manual installation](docs/INSTALL.md).
+Separate tenants use protected files: `ghl --env-file /secure/tenant.env ...`.
 
 ## Included
 

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
 import hashlib
+import os
 import json
 import re
 import sqlite3
@@ -15,7 +16,7 @@ import urllib.robotparser
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / 'knowledge'
+DATA = Path(os.environ.get('GHL_KNOWLEDGE_DIR', str(ROOT / 'knowledge')))
 
 class ArticleParser(HTMLParser):
     def __init__(self):

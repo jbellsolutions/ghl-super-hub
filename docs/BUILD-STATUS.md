@@ -1,4 +1,11 @@
-# Build status — 2026-10-19
+# Build status — updated 2026-10-20
+
+## One-command installation (v2.2.0)
+
+Native Claude Code and Hermes plugin packages, a single-command release installer,
+managed Python fallback, persistent sidecar runtimes, and hidden credential setup
+are included. A drop-in INSTALL-AGENT.md provides the same flow to either agent.
+See [installation evidence](evals/2026-10-20-installation.md) for tested cases and limits.
 
 ## Shipped in this checkout
 
@@ -16,7 +23,7 @@
 
 ## Validation performed
 
-`python -m unittest discover -s tests -v`: **23 tests passed**. Checks include source
+`python -m unittest discover -s tests -v`: **37 tests passed**. Checks include source
 catalog consistency, tenant isolation, no implicit location, no-network dry runs,
 required body validation, unsafe path rejection, retries, redirect refusal, empty
 responses, multipart handle closure, public OAuth form transport, CLI location handling,
