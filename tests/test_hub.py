@@ -107,7 +107,10 @@ class McpProtocol(unittest.TestCase):
     def test_handshake_tools_and_notifications(self):
         result=dispatch({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2025-03-26'}})
         self.assertEqual(result['result']['protocolVersion'],'2025-03-26')
-        self.assertEqual(len(dispatch({'jsonrpc':'2.0','id':2,'method':'tools/list'})['result']['tools']),6)
+        self.assertEqual(result['result']['serverInfo']['version'],json.loads((ROOT/'plugin.json').read_text())['version'])
+        tools={t['name']:t for t in dispatch({'jsonrpc':'2.0','id':2,'method':'tools/list'})['result']['tools']}
+        self.assertEqual(len(tools),8)
+        self.assertTrue(tools['ghl_call']['annotations']['destructiveHint']);self.assertTrue(tools['ghl_dashboard']['annotations']['readOnlyHint'])
         self.assertIsNone(dispatch({'jsonrpc':'2.0','method':'notifications/initialized'}))
     def test_tool_errors_are_structured(self):
         result=dispatch({'jsonrpc':'2.0','id':3,'method':'tools/call','params':{'name':'ghl_call','arguments':{'operation_id':'missing','execute':'true'}}})
@@ -116,5 +119,28 @@ class McpProtocol(unittest.TestCase):
         result=subprocess.run([str(ROOT/'ghl'),'hub','mcp'],input='{"jsonrpc":"2.0","id":1,"method":"ping"}\n{broken\n',text=True,capture_output=True)
         rows=[json.loads(line) for line in result.stdout.splitlines()]
         self.assertEqual(rows[0]['result'],{});self.assertEqual(rows[1]['error']['code'],-32700);self.assertEqual(result.returncode,0,result.stderr)
+
+class DashboardAndConnection(unittest.TestCase):
+    @patch.dict(os.environ,{'GHL_LOCATION_ID':'loc 1','GHL_APP_DOMAIN':'https://app.agency.com/'},clear=True)
+    def test_dashboard_links_respect_white_label_and_escape_ids(self):
+        from ghl_hub import dashboard
+        page=dashboard.page('workflow','a/b',docs=0)
+        self.assertEqual(page['url'],'https://app.agency.com/v2/location/loc%201/automation/workflows/a%2Fb')
+        with self.assertRaisesRegex(ValueError,'resource_id'): dashboard.page('contact',docs=0)
+        with self.assertRaisesRegex(ValueError,'Unknown page'): dashboard.page('nope')
+        os.environ['GHL_APP_DOMAIN']='evil.com/@x'
+        with self.assertRaisesRegex(ValueError,'hostname'): dashboard.page('contacts',docs=0)
+    @patch.dict(os.environ,{'GHL_LOCATION_ID':'loc1'},clear=True)
+    def test_dashboard_tool_lists_and_links(self):
+        call=lambda args:json.loads(dispatch({'jsonrpc':'2.0','id':1,'method':'tools/call','params':{'name':'ghl_dashboard','arguments':args}})['result']['content'][0]['text'])
+        self.assertIn('workflows',{p['page'] for p in call({})})
+        self.assertTrue(call({'page':'contacts'})['url'].startswith('https://app.gohighlevel.com/v2/location/loc1/contacts'))
+    @patch.dict(os.environ,{'GHL_API_KEY':'pit-real','GHL_LOCATION_ID':'loc1'},clear=True)
+    def test_whoami_reports_location_or_actionable_hint(self):
+        from ghl_hub.cli import whoami
+        with patch('ghl_hub.transport.requests.request',return_value=response(200,{'location':{'id':'loc1','name':'Acme'}})) as send:
+            self.assertEqual(whoami()['name'],'Acme');self.assertEqual(send.call_args.args[0],'GET')
+        with patch('ghl_hub.transport.requests.request',return_value=response(403)):
+            result=whoami();self.assertFalse(result['connected']);self.assertIn('scope',result['hint'])
 
 if __name__=='__main__': unittest.main()

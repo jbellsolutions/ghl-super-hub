@@ -206,7 +206,20 @@ def verify(python):
     messages=[{'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2024-11-05','capabilities':{},'clientInfo':{'name':'installer','version':'1'}}},{'jsonrpc':'2.0','id':2,'method':'tools/list'}]
     result=subprocess.run([str(python),'-m','ghl_hub.bootstrap','hub','mcp'],input=''.join(json.dumps(m)+'\n' for m in messages),text=True,capture_output=True,timeout=45,check=True)
     responses=[json.loads(line) for line in result.stdout.splitlines()]
-    if len(responses)!=2 or 'serverInfo' not in responses[0].get('result',{}) or len(responses[1].get('result',{}).get('tools',[]))!=6:raise ValueError('MCP verification did not discover all six tools')
+    names={t.get('name') for t in responses[1].get('result',{}).get('tools',[])} if len(responses)==2 else set()
+    if 'serverInfo' not in responses[0].get('result',{}) or not REQUIRED_TOOLS<=names:raise ValueError('MCP verification did not discover all required tools')
+
+REQUIRED_TOOLS={'ghl_operations','ghl_schema','ghl_call','ghl_docs_search','ghl_docs_read','ghl_doctor','ghl_whoami','ghl_dashboard'}
+
+def live_check(python):
+    """One read-only API call so setup ends with a proven connection; never fatal."""
+    env={**os.environ,'GHL_ENV_FILE':str(credential_file())} if credential_file().is_file() else dict(os.environ)
+    try:result=subprocess.run([str(python),'-m','ghl_hub.bootstrap','hub','whoami'],env=env,text=True,capture_output=True,timeout=45)
+    except subprocess.TimeoutExpired:return 'Live check timed out; run: ghl hub whoami'
+    try:data=json.loads(result.stdout)
+    except ValueError:return 'Live check unavailable; run: ghl hub whoami'
+    if data.get('connected'):return 'Connected to '+str(data.get('name') or 'location')+' ('+str(data.get('location_id'))+'), verified with a read-only API call.'
+    return 'Credentials saved but the live check failed: '+str(data.get('hint'))+'. Fix it, then run: ghl hub whoami'
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--agent',choices=['auto','claude','hermes','both'],default='auto');parser.add_argument('--version',help='GitHub release tag; default is the latest published release')
@@ -254,11 +267,11 @@ def main():
     if not launcher.exists() and not launcher.is_symlink() or launcher.is_file() and not launcher.is_symlink() and '# Managed by ghl-super-hub installer' in launcher.read_text():
         launcher.write_text(content);launcher.chmod(0o755)
     else:print('Existing ghl command preserved. CLI: '+str(root/'ghl'))
-    print('\nInstalled for '+', '.join(found)+'. Verified all six MCP tools.')
+    print('\nInstalled for '+', '.join(found)+'. Verified all '+str(len(REQUIRED_TOOLS))+' MCP tools.')
     print('CLI: '+str(root/'ghl'))
     print('Next: start a new agent session, then use the ghl-operator skill.')
     if args.docs_only:print('Documentation-only mode. To connect later: '+shlex.quote(str(root/'ghl'))+' hub connect')
-    else:print('GHL connection configured. Verify the intended location with a read before any mutation.')
+    else:print(live_check(python))
     print('No GHL data was changed. Agent trust/permission prompts still apply.')
 
 if __name__=='__main__':

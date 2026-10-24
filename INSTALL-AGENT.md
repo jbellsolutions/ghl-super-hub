@@ -41,7 +41,7 @@ https://github.com/jbellsolutions/ghl-super-hub for the agent I am using.
    Substitute `hermes` as appropriate. Add `--docs-only` only if I chose that mode.
    An interactive terminal can omit `--non-interactive` and answer setup prompts.
    The installer verifies the release checksum, installs the isolated CLI/runtime,
-   configures the agent, and verifies all six MCP tools. Claude uses its native
+   configures the agent, and verifies all eight MCP tools. Claude uses its native
    plugin; Hermes installs nine skills and merges MCP into its existing config
    with a private backup. This avoids requiring portable-plugin support. Hermes’s
    Python must already provide PyYAML. Do not retry the old Hermes plugin-manager

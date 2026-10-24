@@ -7,7 +7,7 @@ Record observed resource IDs, timestamps, statuses and screenshots privately.
 | Check | Pass evidence |
 | --- | --- |
 | Hermes discovery | All nine skill names appear; installed references point at the correct checkout |
-| MCP handshake | Hermes lists six GHL tools; doctor/search work without a write |
+| MCP handshake | Hermes lists eight GHL tools; doctor/search work without a write |
 | Orgo computer | Screenshot/click/type/key/scroll tools act on the intended computer |
 | Tenant isolation | Separate profile processes resolve different location IDs; a missing token fails |
 | Token scopes | Location read succeeds; requested domains tested independently; denied scopes fail clearly |

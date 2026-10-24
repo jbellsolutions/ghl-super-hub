@@ -14,12 +14,43 @@ def doctor():
     else: report['help_archive']={'complete':False}
     return report
 
+def whoami():
+    """One read-only live call proving the token can read the configured location."""
+    import requests
+    location=os.environ.get('GHL_LOCATION_ID','')
+    try: data=call('locations:get-location',{'locationId':location},execute=True)['result']
+    except requests.HTTPError as exc:
+        code=exc.response.status_code
+        hint={401:'Token rejected: expired, revoked or mistyped. Run: ghl hub connect',403:'Token valid but cannot read this location: wrong location ID, or the Private Integration lacks the locations.readonly scope',404:'Location not found: check GHL_LOCATION_ID',429:'Rate limited: retry shortly'}.get(code,'Unexpected API response')
+        return dict(connected=False,http_status=code,hint=hint)
+    except requests.RequestException: return dict(connected=False,hint='Network error reaching services.leadconnectorhq.com')
+    loc=data.get('location',data) if isinstance(data,dict) else {}
+    return dict(connected=True,location_id=loc.get('id',location),name=loc.get('name'),timezone=loc.get('timezone'),company_id=loc.get('companyId'))
+
 @click.group()
 def hub():
     """API discovery, knowledge search, MCP, and account diagnostics."""
 
 @hub.command('doctor')
 def doctor_command(): output(doctor())
+
+@hub.command('whoami')
+def whoami_command():
+    """Verify the saved token against the live API with one read-only request."""
+    try: result=whoami()
+    except ValueError as exc: raise click.ClickException(str(exc))
+    output(result)
+    if not result['connected']: raise SystemExit(1)
+
+@hub.command('open')
+@click.argument('page',required=False)
+@click.option('--id','resource_id',help='Resource ID for detail pages such as contact or workflow')
+def open_command(page,resource_id):
+    """Print the dashboard URL, menu path and help articles for a page (no PAGE lists them)."""
+    from . import dashboard
+    if not page: return output(dashboard.pages())
+    try: output(dashboard.page(page,resource_id))
+    except ValueError as exc: raise click.ClickException(str(exc))
 
 @hub.command('operations')
 @click.argument('query',default='')

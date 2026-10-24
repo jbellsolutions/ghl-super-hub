@@ -37,7 +37,7 @@ or `GHL_ENV_FILE` profile is reused. No GHL request is made during installation;
 configured credentials still need live permission/location verification.
 
 The installer downloads the latest release and SHA-256 checksum, verifies the ZIP,
-installs an isolated CLI/runtime, configures the agent, and checks the six MCP
+installs an isolated CLI/runtime, configures the agent, and checks the eight MCP
 tools. It uses user-local directories without sudo or shell-profile edits. Claude
 Code or Hermes and its native plugin prerequisites (including Git) must already be installed. Supported: macOS, Linux, Orgo and WSL;
 use WSL on native Windows. Network/organization/agent trust prompts still apply.

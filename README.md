@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/jbellsolutions/ghl-super-hub/main/i
 
 Or **drop [INSTALL-AGENT.md](INSTALL-AGENT.md) into Claude Code or Hermes** and say:
 “Install this for me.” The installer detects the agent(s), verifies the release,
-installs the CLI, configures the agent, and checks all six MCP tools. Use
+installs the CLI, configures the agent, and checks all eight MCP tools. Use
 `bash -s -- --agent claude` or `bash -s -- --agent hermes` to choose one explicitly.
 
 Before installing, setup checks the agent, Git, writable paths and account connection.
@@ -57,7 +57,8 @@ Separate tenants use protected files: `ghl --env-file /secure/tenant.env ...`.
   namespaced separately, generated from pinned official OpenAPI sources.
 - Schema inspection, required-input validation, dry-run plans and explicit execution.
   JSON bodies, URL-encoded forms and multipart file uploads are supported.
-- Six stdio MCP tools exposing API discovery/execution and documentation retrieval.
+- Eight stdio MCP tools: API discovery/execution, documentation retrieval, a live
+  connection check (`ghl_whoami`) and dashboard deep links (`ghl_dashboard`).
 - Nine portable skills covering routing, APIs, browser use, workflows, sites,
   email campaigns, affiliates, community memberships and courses.
 - Local full-text search over saved help articles and official API source files.
