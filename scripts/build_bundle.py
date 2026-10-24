@@ -20,6 +20,9 @@ def main():
             # Personalized account examples are not generic deployment resources.
             if rel.parts[0]=='cli_anything' and 'skills' in rel.parts: continue
             archive.write(p,Path('ghl-super-hub')/rel)
+    # The installer refuses a release whose checksum file was left from an older build.
+    import hashlib
+    output.with_name(output.name+'.sha256').write_text(hashlib.sha256(output.read_bytes()).hexdigest()+'  '+output.name+'\n')
     print(output)
     print(f'{output.stat().st_size:,} bytes')
 if __name__=='__main__':main()
